@@ -73,7 +73,8 @@
         .options-grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; margin-bottom: 30px; }
         .option-item {
             background: rgba(255,255,255,0.7); border: 1px solid #EEEAE5; padding: 20px 30px;
-            cursor: pointer; transition: all 0.3s ease; font-family: 'Noto Sans SC', sans-serif;
+            cursor: pointer; transition: all 0.3s ease; 
+            /* 字体统一为 Noto Serif SC (继承自 body)  */
             font-size: 1rem; text-align: left; position: relative; overflow: hidden; border-radius: 4px; color: #5C5552; line-height: 1.7;
         }
         .option-item:hover { border-color: #D6BABA; background: #FFF; transform: translateY(-2px); }
@@ -720,7 +721,7 @@
             function showReport() {
                 const { info, top, left } = buildReport();
                 
-                // 🌟 获取并格式化当前的年月日
+                // 获取并格式化当前的年月日
                 const today = new Date();
                 const year = today.getFullYear();
                 const month = String(today.getMonth() + 1).padStart(2, '0');
