@@ -484,6 +484,19 @@
                 ] }
             ];
 
+            // ========== 新增：打乱每个问题的选项顺序（其他代码一字未改）==========
+            // Fisher–Yates 洗牌函数
+            function shuffleArray(arr) {
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            }
+            // 对每个问题的 options 进行随机打乱
+            questions.forEach(q => shuffleArray(q.options));
+            // ========== 打乱结束 ==========
+
             // 状态与数据记录
             const validCodes = new Set(['98937','90519','53078','51049','80053','83257','31496','36007','85696','64469','69210','50503','94110','42991','88079','81029','18323','90249','12664','41856']);
             let currentIdx = 0;
