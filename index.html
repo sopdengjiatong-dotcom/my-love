@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 关键视口设置：确保移动端缩放正确，提升触摸体验 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>玫瑰与星辰 · 依恋风格测试</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; background: #FAF7F2; font-family: 'Noto Serif SC', serif; color: #5C5552; overflow: hidden; }
+
+        /* 动态光晕背景 */
+        .glow {
+            position: fixed; width: 600px; height: 600px; filter: blur(120px); z-index: -1; opacity: 0.3;
+            animation: breathe 12s infinite alternate;
+        }
+        .glow-1 { background: #D6BABA; top: -15%; left: -10%; }
+        .glow-2 { background: #A9B5C2; bottom: -15%; right: -10%; animation-delay: -6s; }
+        @keyframes breathe { 0% { transform: scale(1); opacity: 0.2; } 100% { transform: scale(1.3); opacity: 0.4; } }
+
+        /* 进度条 + 文字指示 (fixed，因此主容器需留出顶部空间) */
+        .progress-container {
+            position: fixed; top: 30px; width: 70%; left: 15%; height: 2px;
+            background: rgba(92,85,82,0.1); z-index: 20;
+        }
+        .progress-bar {
+            height: 100%; background: #5C5552; width: 0%; transition: width 0.4s ease; position: relative;
+        }
+        .progress-bar::after {
+            content: ''; position: absolute; right: -5px; top: -4px;
+            width: 10px; height: 10px; background: #5C5552; border-radius: 50% 0 50% 50%;
+            transform: rotate(-45deg);
+        }
+        .progress-indicator {
+            position: fixed; top: 50px; left: 50%; transform: translateX(-50%); font-size: 0.75rem;
+            letter-spacing: 3px; color: #D6BABA; text-transform: uppercase; z-index: 25;
+            background: rgba(255,255,255,0.3); padding: 4px 16px; border-radius: 40px; backdrop-filter: blur(4px);
+        }
+
+        /* 主容器：避开固定进度条，增加顶部内边距 */
+        #main-container {
+            max-width: 700px; margin: 0 auto; height: 100vh; display: flex;
+            flex-direction: column; justify-content: center; 
+            padding: 80px 24px 20px 24px;  /* 上内边距80px确保不被进度条遮挡 */
+            overflow-y: auto; box-sizing: border-box;
+        }
+        
+        /* 题目卡片 - 丝滑飘散动画 */
+        .question-box {
+            opacity: 0;
+            transform: translateY(20px); 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255,255,255,0.7); backdrop-filter: blur(6px);
+            padding: 45px; border-radius: 4px; border: 1px solid #F0EBE1;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.02);
+            width: 100%; text-align: center;
+        }
+        .question-box.active { opacity: 1; transform: translateY(0); }
+        .question-box.fade-out { opacity: 0; transform: translateY(-20px); }
+
+        .part-title {
+            font-size: 0.9rem; letter-spacing: 3px; color: #B5AFA9; margin-bottom: 10px;
+            border-left: 3px solid #D6BABA; padding-left: 15px; text-transform: uppercase; text-align: left;
+        }
+        .question-text {
+            font-size: 1.4rem; line-height: 1.8; margin-bottom: 40px; font-weight: 500;
+            color: #4A4643; letter-spacing: 0.5px; min-height: 120px;
+        }
+
+        /* 选项网格 */
+        .options-grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; margin-bottom: 30px; }
+        .option-item {
+            background: rgba(255,255,255,0.7); border: 1px solid #EEEAE5; padding: 20px 30px;
+            cursor: pointer; transition: all 0.3s ease; font-family: 'Noto Sans SC', sans-serif;
+            font-size: 1rem; text-align: left; position: relative; overflow: hidden; border-radius: 4px; color: #5C5552; line-height: 1.7;
+        }
+        .option-item:hover { border-color: #D6BABA; background: #FFF; transform: translateY(-2px); }
+        .option-item:active { transform: scale(0.98); }
+
+        .nav-buttons { display: flex; justify-content: space-between; margin-top: 20px; }
+        .prev-btn {
+            padding: 10px 28px; border: 1px solid #C5B9D1; background: transparent;
+            color: #5C5552; font-family: 'Noto Serif SC', serif; cursor: pointer; transition: 0.3s;
+            border-radius: 40px; font-size: 0.95rem; text-decoration: none; display: inline-block;
+        }
+        .prev-btn:hover { background: #C5B9D1; color: white; border-color: #C5B9D1; }
+        .prev-btn.hidden { visibility: hidden; pointer-events: none; }
+
+        /* 转场/验证层 — 磨砂玻璃效果 */
+        .intermission, .verify-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(250,247,242,0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            z-index: 70; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.8s ease;
+        }
+        .verify-box {
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 50px 60px; border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 16px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.04), inset 0 0 20px rgba(255,255,255,0.5); text-align: center; max-width: 400px;
+        }
+        .verify-decor {
+            color: #D6BABA; font-size: 1.8rem; margin-bottom: 10px; animation: twinkle 2s infinite alternate ease-in-out;
+        }
+        @keyframes twinkle { 0% { opacity: 0.3; transform: scale(0.85); text-shadow: 0 0 0px #D6BABA; } 100% { opacity: 1; transform: scale(1.1); text-shadow: 0 0 15px #D6BABA; } }
+        .verify-title { font-size: 1.6rem; margin-bottom: 5px; color: #4A4643; letter-spacing: 6px; }
+        .verify-subtitle { font-size: 0.85rem; margin-bottom: 40px; color: #B5AFA9; letter-spacing: 2px; font-family: 'Noto Sans SC', sans-serif; text-transform: uppercase; }
+        .verify-input {
+            padding: 10px 15px; width: 180px; font-size: 1.6rem; border: none; border-bottom: 1px solid #D6BABA; background: transparent;
+            color: #5C5552; letter-spacing: 12px; text-align: center; margin-bottom: 45px; outline: none; transition: all 0.4s ease; font-family: 'Noto Serif SC', serif;
+        }
+        .verify-input:focus { border-bottom-color: #A9B5C2; width: 220px; }
+        .verify-btn {
+            padding: 12px 45px; background: transparent; border: 1px solid #C5B9D1; color: #5C5552; font-size: 1.05rem;
+            letter-spacing: 3px; border-radius: 40px; cursor: pointer; transition: all 0.4s ease; font-family: 'Noto Serif SC', serif;
+        }
+        .verify-btn:hover { background: #C5B9D1; color: white; box-shadow: 0 10px 25px rgba(197,185,209,0.4); transform: translateY(-2px); }
+
+        /* 星空结果层 & 报告卡片 */
+        #canvas-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 40% 50%, #2C2A35 0%, #0F0F12 100%);
+            display: none; z-index: 100; opacity: 0; transition: opacity 2.2s ease;
+        }
+        .loading-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #D8D2E1;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.1rem;
+            letter-spacing: 8px;
+            z-index: 105;
+            opacity: 0;
+            transition: opacity 1s ease;
+            animation: pulse-text 2s infinite alternate;
+            pointer-events: none;
+        }
+        @keyframes pulse-text {
+            0% { opacity: 0.4; text-shadow: 0 0 5px rgba(216,210,225,0.1); }
+            100% { opacity: 0.9; text-shadow: 0 0 15px rgba(216,210,225,0.6); }
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+        #report-card {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; max-width: 800px; background: #FFFFFF; color: #5C5552; z-index: 110; display: none;
+            border-radius: 4px; border: 1px solid #F0EBE1; box-shadow: 0 40px 100px rgba(0,0,0,0.2); overflow: hidden; opacity: 0; transition: opacity 1.2s;
+        }
+        .report-header { height: 220px; background: radial-gradient(circle at 70% 30%, #2C2A35 0%, #1A191E 100%); position: relative; display: flex; align-items: center; padding: 0 50px; }
+        .header-title { color: #D8D2E1; font-family: 'Noto Serif SC', serif; z-index: 10; }
+        .header-title p { font-size: 0.9rem; opacity: 0.7; letter-spacing: 2px; }
+        .header-title h1 { font-size: 2.2rem; letter-spacing: 5px; margin: 5px 0 0; }
+        .constellation-svg { position: absolute; top: 0; right: 0; width: 250px; height: 100%; opacity: 0.5; }
+        .report-content { padding: 50px 60px; line-height: 2; }
+        .chart-section { display: flex; align-items: center; gap: 50px; margin-bottom: 50px; }
+        .coordinate-system { width: 180px; height: 180px; border: 1px solid #E6E0D8; position: relative; background: #FDFBFA; flex-shrink: 0; }
+        .axis-x { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: #E6E0D8; }
+        .axis-y { position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: #E6E0D8; }
+        .user-point { position: absolute; width: 12px; height: 12px; background: #C5B9D1; border-radius: 50%; box-shadow: 0 0 18px #C5B9D1; animation: pulse 2s infinite; transform: translate(-50%, -50%); }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.6); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
+        .dim-label { font-size: 0.7rem; color: #B5AFA9; position: absolute; }
+        .type-title { font-family: 'Noto Serif SC', serif; color: #D6BABA; font-size: 1.8rem; margin: 10px 0 5px; }
+        .type-sub { font-size: 1.3rem; font-weight: bold; color: #8C847E; }
+        h3 { font-family: 'Noto Serif SC', serif; color: #4A4643; font-size: 1.4rem; margin-top: 30px; border-bottom: 1px inset #F0EBE1; padding-bottom: 8px; display: inline-block; }
+        .analysis-p { margin-top: 20px; color: #7A736E; text-align: justify; }
+        .suggestion-card { background: #FAF7F2; padding: 35px; margin: 40px 0 20px; border-radius: 20px; border-left: 4px solid #C5B9D1; }
+        .footer-sign { margin-top: 50px; text-align: right; color: #B5AFA9; border-top: 1px dashed #E6E0D8; padding-top: 25px; }
+        .postmark { position: absolute; bottom: 30px; left: 40px; width: 80px; height: 80px; border: 2px double #D6BABA; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #D6BABA; font-size: 0.6rem; transform: rotate(-12deg); opacity: 0.5; }
+        .action-buttons { display: flex; gap: 20px; justify-content: flex-end; margin-top: 20px; }
+        .btn { padding: 12px 30px; border: 1px solid #C5B9D1; background: transparent; color: #5C5552; font-family: 'Noto Serif SC', serif; cursor: pointer; transition: 0.3s; border-radius: 40px; font-size: 1rem; }
+        .btn:hover { background: #C5B9D1; color: white; border-color: #C5B9D1; }
+        .btn-primary { background: #C5B9D1; color: white; border: none; }
+        .btn-primary:hover { background: #B5A9C1; }
+
+        /* ---------- 移动端专项优化 (屏幕宽度小于700px) ---------- */
+        @media (max-width: 700px) {
+            .progress-container { width: 80%; left: 10%; }
+            .progress-indicator { font-size: 0.6rem; padding: 4px 12px; top: 45px; }
+            #main-container { padding: 90px 16px 16px 16px; }  /* 增加顶部留白 */
+            .question-box { padding: 30px 20px; }
+            .question-text { font-size: 1.2rem; line-height: 1.6; margin-bottom: 30px; min-height: auto; }
+            .part-title { font-size: 0.8rem; padding-left: 10px; }
+            .options-grid { gap: 12px; }
+            .option-item { padding: 16px 18px; font-size: 0.95rem; }
+            .nav-buttons { margin-top: 10px; }
+            .prev-btn { padding: 8px 22px; font-size: 0.9rem; }
+
+            /* 验证层 */
+            .verify-box { padding: 35px 25px; margin: 0 20px; max-width: 90%; }
+            .verify-title { font-size: 1.4rem; }
+            .verify-input { width: 150px; font-size: 1.4rem; letter-spacing: 8px; }
+            .verify-input:focus { width: 180px; }
+            .verify-btn { padding: 10px 30px; font-size: 1rem; }
+
+            /* 报告卡片 */
+            #report-card { width: 92%; max-height: 90vh; overflow-y: auto; }  /* 允许长报告滚动 */
+            .report-header { height: 160px; padding: 0 25px; }
+            .header-title h1 { font-size: 1.6rem; }
+            .header-title p { font-size: 0.7rem; }
+            .constellation-svg { width: 150px; }
+            .report-content { padding: 30px 25px; }
+            .chart-section { flex-direction: column; gap: 25px; align-items: flex-start; }
+            .coordinate-system { width: 150px; height: 150px; align-self: center; }
+            .type-title { font-size: 1.5rem; }
+            .type-sub { font-size: 1.1rem; }
+            h3 { font-size: 1.2rem; }
+            .suggestion-card { padding: 25px; }
+            .action-buttons { gap: 12px; flex-wrap: wrap; }
+            .btn { padding: 10px 22px; font-size: 0.9rem; }
+            .postmark { width: 60px; height: 60px; left: 20px; bottom: 20px; font-size: 0.5rem; }
+        }
+
+        /* 超小屏 (400px以下) 进一步微调 */
+        @media (max-width: 400px) {
+            .question-box { padding: 20px 15px; }
+            .question-text { font-size: 1.1rem; }
+            .option-item { padding: 14px 14px; }
+            .verify-input { width: 120px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+
+    <div class="progress-container"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-indicator" id="progress-text">Step 01 / 36</div>
+
+    <div id="main-container"></div>
+
+    <div class="intermission" id="intermission"><div class="intermission-text" id="intermission-text"></div></div>
+
+    <div class="verify-layer" id="verify-layer">
+        <div class="verify-box">
+            <div class="verify-decor">✦</div>
+            <p class="verify-title">星 辰 密 钥</p>
+            <p class="verify-subtitle">Unlock the soul trajectory</p>
+            <input type="text" class="verify-input" id="verify-code" autocomplete="off" maxlength="5">
+            <br>
+            <button class="verify-btn" id="verify-submit">开启轨迹</button>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="starCanvas"></canvas>
+        <div id="loading-text" class="loading-text">正在为您绘制灵魂星图...</div>
+        <div id="report-card">
+            <div class="report-header">
+                <div class="header-title">
+                    <p>玫瑰与星辰 · 依恋量表</p>
+                    <h1>致你的灵魂信札</h1>
+                </div>
+                <svg class="constellation-svg" viewBox="0 0 100 100">
+                    <circle cx="80" cy="30" r="1" fill="#D8D2E1"/><circle cx="60" cy="50" r="1" fill="#D8D2E1"/>
+                    <circle cx="85" cy="70" r="1" fill="#D8D2E1"/><line x1="80" y1="30" x2="60" y2="50" stroke="#C5B9D1" stroke-width="0.2"/>
+                    <line x1="60" y1="50" x2="85" y2="70" stroke="#C5B9D1" stroke-width="0.2"/>
+                </svg>
+            </div>
+            <div class="report-content" id="reportContent"></div>
+            <div class="postmark">灵魂档案<br>PRIVACY</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // 题库 (完整保留 36 题)
+            const questions = [
+                { part: "第一部分：探寻灵魂的触角", text: "若爱是一场在迷雾森林中的重逢，当对方试图牵起你的手时，你内心的第一声低语是：", options: [
+                    { t: "“请紧紧握住，千万别在雾气散去前松开。”", type: "anxious" },
+                    { t: "“这温度很真实，我愿意与你并肩走出这片迷雾。”", type: "secure" },
+                    { t: "“手心的汗水让我感到局促，我更习惯独自看路。”", type: "avoidant" },
+                    { t: "“如果我现在沉溺于这温暖，等他松手时我会摔得更碎。”", type: "fearful" }
+                ] },
+                { text: "如果你发现伴侣的桌上有一封未寄出的旧情书，你的浪漫想象会偏向何方？", options: [
+                    { t: "陷入无尽的惶恐，反复确认自己是否只是替代品。", type: "anxious" },
+                    { t: "微微一笑，那是他生命中一段温柔的过往，我爱的是现在的他。", type: "secure" },
+                    { t: "毫无波澜，每个人都有自己的秘密花园。", type: "avoidant" },
+                    { t: "感到刺痛的威胁，想要逃离可能并不纯粹的关系。", type: "fearful" }
+                ] },
+                { text: "在名为“爱情”的剧院里，你最倾向于扮演哪种角色？", options: [
+                    { t: "那个在台下疯狂鼓掌、生怕错过主角每一个眼神的追随者。", type: "anxious" },
+                    { t: "与伴侣在舞台中央共演，享受每一场起伏的对手戏。", type: "secure" },
+                    { t: "坐在最后一排角落，随时准备在落幕前悄然离去的观众。", type: "avoidant" },
+                    { t: "既想冲上台拥抱，又怕被聚光灯灼伤的矛盾体。", type: "fearful" }
+                ] },
+                { text: "当对方称赞你是“世间唯一的玫瑰”时，你的真实感受是：", options: [
+                    { t: "渴望他每天都这样重复，否则我会枯萎。", type: "anxious" },
+                    { t: "感到被理解的喜悦，并想回赠他同样的深情。", type: "secure" },
+                    { t: "觉得这修辞太过沉重，我只想做一株普通的草。", type: "avoidant" },
+                    { t: "怀疑这只是诱捕我的陷阱，等我信以为真时他就会离开。", type: "fearful" }
+                ] },
+                { text: "如果爱是一场深夜的航行，你如何看待那盏照亮海面的灯塔（伴侣）？", options: [
+                    { t: "它是我的命脉，如果灯熄灭了，我也会随之沉入海底。", type: "anxious" },
+                    { t: "它是温暖的指引，让我们的航行更加心安。", type: "secure" },
+                    { t: "我更相信自己的指南针，灯塔离得太近会让我迷失方向。", type: "avoidant" },
+                    { t: "我既想向灯塔靠拢，又怕礁石会撞碎我的小船。", type: "fearful" }
+                ] },
+                { text: "在静谧的午后，伴侣突然陷入了长久的沉默，你会：", options: [
+                    { t: "反思自己刚才是否说错了话，焦急地试图打破沉默。", type: "anxious" },
+                    { t: "享受这份宁静，即使不说话也感到心意相通。", type: "secure" },
+                    { t: "感到松了一口气，这正是我想独处的时刻。", type: "avoidant" },
+                    { t: "怀疑对方已经厌倦了这段关系，正在脑海里策划分手。", type: "fearful" }
+                ] },
+                { text: "当你们决定一起去远方旅行，你对“共处”的最高理想是：", options: [
+                    { t: "24小时不分离，像连体婴一样感受彼此的呼吸。", type: "anxious" },
+                    { t: "一起看海，也允许各自在书店消磨半个下午。", type: "secure" },
+                    { t: "最好各住一间房，保留那种透明的自由感。", type: "avoidant" },
+                    { t: "想要贴近，却又怕旅途中的摩擦会毁掉所有的美好。", type: "fearful" }
+                ] },
+                { text: "你是否曾因为对方没有秒回信息，而在脑海里写下了一出《被遗忘的荒原》？", options: [
+                    { t: "经常如此，我的安全感完全取决于那条未读消息。", type: "anxious" },
+                    { t: "很少，我相信他有自己的事要忙。", type: "secure" },
+                    { t: "我根本不在意，甚至觉得不回信息是种解脱。", type: "avoidant" },
+                    { t: "我会先把他删掉，在感受到被忽略的痛苦前先掌握主动权。", type: "fearful" }
+                ] },
+                { text: "如果亲密关系是一件精美的瓷器，你最担心的是：", options: [
+                    { t: "它不够结实，经不起一点点冷落的微风。", type: "anxious" },
+                    { t: "没关系，即便有裂痕，我们也可以一起修补。", type: "secure" },
+                    { t: "它太占地方，限制了我摆放其他东西的空间。", type: "avoidant" },
+                    { t: "它终究会碎，所以我不敢付出太多的感情去擦拭它。", type: "fearful" }
+                ] },
+                { part: "第二部分：情感的博弈与防线", text: "当对方说“我需要一点个人空间”时，你的第一反应是：", options: [
+                    { t: "“他不爱我了，他在疏远我。”", type: "anxious" },
+                    { t: "“好的，我也正想去处理一些自己的事。”", type: "secure" },
+                    { t: "“谢天谢地，我终于不用再应付这种亲密感了。”", type: "avoidant" },
+                    { t: "“他一定是找到了更好的替代品，我要开始准备后路了。”", type: "fearful" }
+                ] },
+                { text: "在吵架后的深夜，你通常如何处理内心的余波？", options: [
+                    { t: "反复翻看过去的甜蜜照片，哭着等待对方的一句解释。", type: "anxious" },
+                    { t: "整理思绪，准备明天平静地与对方沟通解决问题。", type: "secure" },
+                    { t: "直接倒头就睡，觉得这种纠缠毫无意义。", type: "avoidant" },
+                    { t: "在心碎与愤怒中反复横跳，想求和却又想彻底拉黑对方。", type: "fearful" }
+                ] },
+                { text: "如果你是一只猫，你会如何对待那个想要抱你的主人？", options: [
+                    { t: "没完没了地蹭他，甚至发出不满的叫声要求更多关注。", type: "anxious" },
+                    { t: "呼噜呼噜地享受抚摸，也可以自己安静地睡在窗台。", type: "secure" },
+                    { t: "当他走近时，我会立刻敏捷地跳到柜顶观察。", type: "avoidant" },
+                    { t: "一边享受抚摸，一边在对方试图抱得更紧时哈气。", type: "fearful" }
+                ] },
+                { text: "关于“承诺”，你的浪漫解读更接近于：", options: [
+                    { t: "一根救命稻草，让我不必在孤独的深渊里下坠。", type: "anxious" },
+                    { t: "一份双方共同守护的契约，基于信任而非束缚。", type: "secure" },
+                    { t: "一副华丽的镣铐，我暂时戴着但随时想要钥匙。", type: "avoidant" },
+                    { t: "一个终将破裂的泡沫，虽然美丽但注定失望。", type: "fearful" }
+                ] },
+                { text: "当你获得了一项巨大的成功，你第一时间分享给伴侣的原因是：", options: [
+                    { t: "只有他的肯定，才让我觉得这份成功是有价值的。", type: "anxious" },
+                    { t: "因为他是我最亲密的战友，我想与他共享喜悦。", type: "secure" },
+                    { t: "我并不觉得一定要分享，分享会让我的独立感减弱。", type: "avoidant" },
+                    { t: "我怕他会嫉妒或嘲讽，所以我习惯保留这份骄傲。", type: "fearful" }
+                ] },
+                { text: "在浪漫的相处中，你是否会故意表现出“冷淡”来测试对方的反应？", options: [
+                    { t: "不会，我怕我的冷淡会真的赶走他。", type: "anxious" },
+                    { t: "不会，我认为这是一种低效且伤人的沟通方式。", type: "secure" },
+                    { t: "这种冷淡往往是我的真实状态，而非测试。", type: "avoidant" },
+                    { t: "经常，我想看看他是否真的在乎我到愿意求我。", type: "fearful" }
+                ] },
+                { text: "如果爱是一座城堡，你认为最理想的防御措施是：", options: [
+                    { t: "全天候开启城门，只要他在，什么防御都不要。", type: "anxious" },
+                    { t: "与伴侣共同驻守，通过定期的沟通加固城墙。", type: "secure" },
+                    { t: "挖掘一条宽阔的护城河，即使是伴侣也要保持距离。", type: "avoidant" },
+                    { t: "在城堡内部设满机关，防止他在进入后伤害我。", type: "fearful" }
+                ] },
+                { text: "当你感到对方的爱意减少时，你会采取什么策略？", options: [
+                    { t: "变得更有控制欲或更卑微，试图挽回那份关注。", type: "anxious" },
+                    { t: "找个合适的时间，真诚地表达我的感受和担忧。", type: "secure" },
+                    { t: "顺势退缩回自己的世界，甚至表现得比对方更冷淡。", type: "avoidant" },
+                    { t: "陷入极度的自我怀疑，并在这种痛苦中反复折磨对方。", type: "fearful" }
+                ] },
+                { text: "对于“执子之手，与子偕老”，你的内心OS是：", options: [
+                    { t: "“天呐，这简直是世界上最浪漫、最令我向往的宿命。”", type: "anxious" },
+                    { t: "“虽然漫长，但我愿意与合适的人一起努力去实现。”", type: "secure" },
+                    { t: "“太沉重了，我无法想象几十年都要面对同一张脸。”", type: "avoidant" },
+                    { t: "“很美，但这种事永远不会发生在我身上。”", type: "fearful" }
+                ] },
+                { part: "第三部分：脆弱与重塑的微光", text: "如果一段关系结束了，你觉得最体面的告别是：", options: [
+                    { t: "纠缠到底，直到所有的爱都磨损成恨，才肯死心。", type: "anxious" },
+                    { t: "珍藏那段共同成长的回忆，然后祝福彼此重新出发。", type: "secure" },
+                    { t: "悄无声息地消失，不留下任何解释和痕迹。", type: "avoidant" },
+                    { t: "在绝望中诋毁对方，用愤怒掩盖内心无法承受的悲伤。", type: "fearful" }
+                ] },
+                { text: "在一段感情中，你最怕被贴上的标签是：", options: [
+                    { t: "“粘人且令人窒息的控制狂”。", type: "anxious" },
+                    { t: "“毫无主见的平庸者”。", type: "secure" },
+                    { t: "“没有感情的冰冷机器”。", type: "avoidant" },
+                    { t: "“阴晴不定、难以捉摸的怪人”。", type: "fearful" }
+                ] },
+                { text: "当伴侣向你展示他最脆弱、最糟糕的一面时，你会：", options: [
+                    { t: "感到恐慌，因为这打破了我对他完美的幻想。", type: "anxious" },
+                    { t: "感到心疼，并用怀抱告诉他，这一面也是我所爱的。", type: "secure" },
+                    { t: "感到厌烦，觉得他这是在进行情感勒索。", type: "avoidant" },
+                    { t: "感到一种扭曲的共鸣，但很快会因为他的脆弱而贬低他。", type: "fearful" }
+                ] },
+                { text: "如果要把爱比作一种天气，你希望是：", options: [
+                    { t: "永恒的烈日，照亮所有阴影。", type: "anxious" },
+                    { t: "四季更替的自然景观，有雨有雪也有晴。", type: "secure" },
+                    { t: "恒温的室内环境，隔绝外界的一切纷扰。", type: "avoidant" },
+                    { t: "暴雨后的彩虹，美丽却稍纵即逝。", type: "fearful" }
+                ] },
+                { text: "你是否觉得，真正的自我只存在于独处的时刻？", options: [
+                    { t: "不，我只有在爱人的眼中才能看到完整的自己。", type: "anxious" },
+                    { t: "独处和共处都是自我的不同侧面。", type: "secure" },
+                    { t: "绝对是，他人的存在是对我自我的某种侵蚀。", type: "avoidant" },
+                    { t: "我不知道真正的自我在哪，我总是在不断扮演。", type: "fearful" }
+                ] },
+                { text: "当你的情感需求未得到满足时，你通常会：", options: [
+                    { t: "哭闹、抱怨或通过疯狂刷存在感来索取。", type: "anxious" },
+                    { t: "直接清晰地告知对方我的需求是什么。", type: "secure" },
+                    { t: "抑制自己的需求，告诉自己“我根本不需要这些”。", type: "avoidant" },
+                    { t: "既渴望被关注，又在对方走近时推开他。", type: "fearful" }
+                ] },
+                { text: "在浪漫的梦境中，你最常梦见：", options: [
+                    { t: "正在被伴侣追逐，或是在婚礼现场找不到伴侣。", type: "anxious" },
+                    { t: "与伴侣在平凡的生活中牵手散步。", type: "secure" },
+                    { t: "自己一个人在广袤的大地或太空中自由飞翔。", type: "avoidant" },
+                    { t: "在一片废墟中寻找一个模糊的背影。", type: "fearful" }
+                ] },
+                { text: "你认为“距离感”在爱情中的作用是：", options: [
+                    { t: "是一种残忍的惩罚。", type: "anxious" },
+                    { t: "是一种必要的呼吸空间。", type: "secure" },
+                    { t: "是一种基本的生存策略。", type: "avoidant" },
+                    { t: "是一种让我又爱又恨的屏障。", type: "fearful" }
+                ] },
+                { text: "如果生活是一场舞台剧，你觉得你的“灵魂伴侣”应该是：", options: [
+                    { t: "那个时刻注视着我、给我最多掌声的人。", type: "anxious" },
+                    { t: "那个能和我对等交流、共同推敲剧本的人。", type: "secure" },
+                    { t: "那个不需要我说话就能明白我想要独处的人。", type: "avoidant" },
+                    { t: "那个能看穿我的伪装、却不会因此离开的人。", type: "fearful" }
+                ] },
+                { text: "当有人对你表现出强烈的追求意向时，你的本能反应是：", options: [
+                    { t: "欣喜若狂，立刻投入这段可能拯救我的关系。", type: "anxious" },
+                    { t: "礼貌地观察，慢慢了解对方是否契合。", type: "secure" },
+                    { t: "感到一种巨大的压力，想要立刻逃跑。", type: "avoidant" },
+                    { t: "怀疑对方的动机，觉得他一定是还没看清真实的我。", type: "fearful" }
+                ] },
+                { text: "你如何看待“依赖”这个词？", options: [
+                    { t: "它是爱的最高级表现形式。", type: "anxious" },
+                    { t: "它是相互支持的基石，但不能失去自我。", type: "secure" },
+                    { t: "它是软弱的代名词，必须杜绝。", type: "avoidant" },
+                    { t: "它是我内心极度渴望却又极度恐惧的深渊。", type: "fearful" }
+                ] },
+                { text: "如果爱是一首歌，你希望它的主旋律是：", options: [
+                    { t: "激昂的交响乐，片刻不停地回响。", type: "anxious" },
+                    { t: "温柔的民谣，在日常中静静流淌。", type: "secure" },
+                    { t: "孤独的钢琴独奏，清冷且高级。", type: "avoidant" },
+                    { t: "充满变奏的爵士乐，无法预测下一小节。", type: "fearful" }
+                ] },
+                { text: "当你发现伴侣开始依赖你时，你的感觉是：", options: [
+                    { t: "成就感十足，这意味着他永远不会离开我了。", type: "anxious" },
+                    { t: "责任感，并愿意提供他所需要的支持。", type: "secure" },
+                    { t: "窒息感，觉得自己的自由被剥夺了。", type: "avoidant" },
+                    { t: "矛盾感，既满足于被需要，又怕这份依赖太重。", type: "fearful" }
+                ] },
+                { text: "你认为最浪漫的告白语应该是：", options: [
+                    { t: "“我不能没有你，你是我的呼吸。”", type: "anxious" },
+                    { t: "“我爱你，我也爱那个因为爱你而变得更好的自己。”", type: "secure" },
+                    { t: "“即使不在一起，我们各自的灵魂也是自由且相连的。”", type: "avoidant" },
+                    { t: "“我知道你并不完美，但我愿意在这个支离破碎的世界里陪着你。”", type: "fearful" }
+                ] },
+                { text: "在日常生活中，你对亲密行为（如拥抱、接吻）的态度是：", options: [
+                    { t: "像充电一样，多多益善，否则会感到没电。", type: "anxious" },
+                    { t: "爱的自然表达，根据当下的情绪而定。", type: "secure" },
+                    { t: "只是礼节性的，过多会让我感到烦躁。", type: "avoidant" },
+                    { t: "想要触碰，却在真正触碰时感到僵硬。", type: "fearful" }
+                ] },
+                { text: "如果要在爱里选择一种“死法”，你更倾向于：", options: [
+                    { t: "溺死在对方汹涌的爱意里。", type: "anxious" },
+                    { t: "老死在彼此安稳的怀抱中。", type: "secure" },
+                    { t: "消失在对方永远找不到的荒野。", type: "avoidant" },
+                    { t: "与对方在相爱相杀的火光中同归于尽。", type: "fearful" }
+                ] },
+                { text: "对于“安全感”，你认为它来源于：", options: [
+                    { t: "对方不断的保证、承诺和时刻的陪伴。", type: "anxious" },
+                    { t: "自身内在的稳定以及与伴侣健康的互动。", type: "secure" },
+                    { t: "自己的银行存款、事业和绝对的独立。", type: "avoidant" },
+                    { t: "这种东西根本不存在，它只是一种幻觉。", type: "fearful" }
+                ] },
+                { text: "完成这套测试后，你现在的浪漫感觉是：", options: [
+                    { t: "希望我的伴侣也能测一下，这样我就能更懂他。", type: "anxious" },
+                    { t: "觉得这是一种有趣的自我探索，让我更了解自己。", type: "secure" },
+                    { t: "为什么要回答这么多私人问题，真麻烦。", type: "avoidant" },
+                    { t: "既然被看穿了，我更害怕别人会如何利用我的这些弱点。", type: "fearful" }
+                ] }
+            ];
+
+            // 状态与数据记录
+            const validCodes = new Set(['98937','90519','53078','51049','80053','83257','31496','36007','85696','64469','69210','50503','94110','42991','88079','81029','18323','90249','12664','41856']);
+            let currentIdx = 0;
+            let scores = { secure:0, anxious:0, avoidant:0, fearful:0 };
+            let answerHistory = new Array(questions.length).fill(null);
+
+            // DOM 节点绑定
+            const mainContainer = document.getElementById('main-container');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const intermissionDiv = document.getElementById('intermission');
+            const intermissionText = document.getElementById('intermission-text');
+            const verifyLayer = document.getElementById('verify-layer');
+            const verifyInput = document.getElementById('verify-code');
+            const verifyBtn = document.getElementById('verify-submit');
+            const canvasContainer = document.getElementById('canvas-container');
+            const reportCard = document.getElementById('report-card');
+            const reportContent = document.getElementById('reportContent');
+            const starCanvas = document.getElementById('starCanvas');
+            const ctx = starCanvas.getContext('2d');
+            let stars = [], animFrame;
+
+            // 渲染题目（带丝滑上浮动画）
+            function renderQuestion() {
+                const q = questions[currentIdx];
+                const box = document.createElement('div'); 
+                box.className = 'question-box'; // 初始状态，等待加 active 触发动画
+                
+                const partHtml = q.part ? `<div class="part-title">${q.part}</div>` : '';
+                box.innerHTML = `
+                    ${partHtml}
+                    <div class="question-text">${q.text}</div>
+                    <div class="options-grid" id="options-grid"></div>
+                    <div class="nav-buttons">
+                        <button class="prev-btn ${currentIdx === 0 ? 'hidden' : ''}" id="prevQuestionBtn">← 上一题</button>
+                    </div>
+                `;
+                
+                mainContainer.innerHTML = '';
+                mainContainer.appendChild(box);
+                
+                const optsDiv = document.getElementById('options-grid');
+                q.options.forEach((opt) => {
+                    const optDiv = document.createElement('div');
+                    optDiv.className = 'option-item';
+                    optDiv.innerText = opt.t;
+                    optDiv.onclick = () => handleAnswer(opt.type);
+                    optsDiv.appendChild(optDiv);
+                });
+
+                const prevBtn = document.getElementById('prevQuestionBtn');
+                if (prevBtn) {
+                    prevBtn.addEventListener('click', goToPrevQuestion);
+                }
+
+                updateProgress();
+
+                setTimeout(() => {
+                    box.classList.add('active');
+                }, 20); 
+            }
+
+            function updateProgress() {
+                progressBar.style.width = ((currentIdx + 1) / questions.length * 100) + '%';
+                progressText.innerText = `Step ${String(currentIdx + 1).padStart(2, '0')} / ${questions.length}`;
+            }
+
+            // 处理答题与退出动画
+            function handleAnswer(type) {
+                if (answerHistory[currentIdx] !== null) {
+                    const prevType = answerHistory[currentIdx];
+                    scores[prevType] -= 1;
+                }
+                answerHistory[currentIdx] = type;
+                scores[type] += 1;
+
+                const currentBox = document.querySelector('.question-box');
+                if (currentBox) {
+                    currentBox.classList.remove('active');
+                    currentBox.classList.add('fade-out'); // 触发向上飘散消失动画
+                }
+
+                setTimeout(() => {
+                    if (currentIdx < questions.length - 1) {
+                        const oldPart = questions[currentIdx].part; 
+                        currentIdx++; 
+                        const nextQ = questions[currentIdx];
+                        
+                        if (nextQ.part && nextQ.part !== oldPart) {
+                            showIntermission(nextQ.part);
+                        } else {
+                            renderQuestion();
+                        }
+                    } else {
+                        verifyLayer.style.display = 'flex';
+                        setTimeout(() => verifyLayer.style.opacity = '1', 30);
+                    }
+                }, 400); 
+            }
+
+            // 返回上一题
+            function goToPrevQuestion() {
+                if (currentIdx > 0) {
+                    if (answerHistory[currentIdx] !== null) {
+                        const prevType = answerHistory[currentIdx];
+                        scores[prevType] -= 1;
+                        answerHistory[currentIdx] = null;
+                    }
+
+                    const currentBox = document.querySelector('.question-box');
+                    if (currentBox) {
+                        currentBox.classList.remove('active');
+                        currentBox.style.transform = 'translateY(20px)'; // 向下退出
+                    }
+                    
+                    setTimeout(() => {
+                        currentIdx--;
+                        renderQuestion();
+                    }, 400);
+                }
+            }
+
+            // 章节转场过渡
+            function showIntermission(text) {
+                intermissionText.innerText = text;
+                intermissionDiv.style.display = 'flex';
+                setTimeout(() => intermissionDiv.style.opacity = '1', 20);
+                setTimeout(() => {
+                    intermissionDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        intermissionDiv.style.display = 'none';
+                        renderQuestion();
+                    }, 1000);
+                }, 2000);
+            }
+
+            // 验证密码
+            verifyBtn.addEventListener('click', function() {
+                const code = verifyInput.value.trim();
+                if (validCodes.has(code)) {
+                    verifyLayer.style.opacity = '0';
+                    setTimeout(() => {
+                        verifyLayer.style.display = 'none';
+                        startFinalAnimation();
+                    }, 500);
+                } else {
+                    alert('密钥错误，请重新输入');
+                }
+            });
+
+            // 星辰动画画布逻辑
+            function initCanvas() {
+                starCanvas.width = window.innerWidth;
+                starCanvas.height = window.innerHeight;
+            }
+            class Star {
+                constructor() {
+                    this.x = Math.random() * starCanvas.width;
+                    this.y = Math.random() * starCanvas.height;
+                    this.size = Math.random() * 2.2 + 0.5;
+                    this.speedX = (Math.random() - 0.5) * 0.25;
+                    this.speedY = (Math.random() - 0.5) * 0.25;
+                    this.opacity = Math.random() * 0.7 + 0.3;
+                }
+                update() {
+                    this.x += this.speedX; this.y += this.speedY;
+                    if (this.x < 0 || this.x > starCanvas.width) this.speedX *= -1;
+                    if (this.y < 0 || this.y > starCanvas.height) this.speedY *= -1;
+                }
+                draw() {
+                    ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(197,185,209,0.8)';
+                    ctx.fillStyle = `rgba(216,210,225,${this.opacity})`;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            }
+            function drawConstellation() {
+                ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
+                stars.forEach((s, i) => {
+                    s.update(); s.draw();
+                    for (let j = i+1; j < stars.length; j++) {
+                        const dx = s.x - stars[j].x, dy = s.y - stars[j].y;
+                        const dist = Math.sqrt(dx*dx+dy*dy);
+                        if (dist < 160) {
+                            ctx.strokeStyle = `rgba(197,185,209,${0.25*(1-dist/160)})`;
+                            ctx.lineWidth = 0.6;
+                            ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(stars[j].x, stars[j].y); ctx.stroke();
+                        }
+                    }
+                });
+                animFrame = requestAnimationFrame(drawConstellation);
+            }
+
+          // 结果计算与报告生成
+            function buildReport() {
+                const typeCount = scores;
+                let mainType = 'secure';
+                let max = typeCount.secure;
+                if (typeCount.anxious > max) { max = typeCount.anxious; mainType = 'anxious'; }
+                if (typeCount.avoidant > max) { max = typeCount.avoidant; mainType = 'avoidant'; }
+                if (typeCount.fearful > max) { max = typeCount.fearful; mainType = 'fearful'; }
+
+                // 优化文案：将 guide 拆分为两段，并增加重点加粗
+                const typeInfo = {
+                    secure: { 
+                        name: '安全型依恋', sub: '“并肩看海的伴侣”', 
+                        desc: '你是情感世界里的“定海神针”。你既不担心被抛弃，也不害怕亲密。你像是一座拥有稳固地基的灯塔，既能发出温暖的光吸引船只，也能允许对方去远航。你相信爱是流动的，也是可靠的。', 
+                        guide: '<p><b>✦ 保持共情：</b>你的稳定是巨大的力量，请用这种力量去疗愈那些可能处于不安中的伴侣。</p><p><b>✦ 防止平庸：</b>安全型有时会因为太稳定而陷入生活的琐碎。请记得偶尔打破常规，为爱情注入诗人般的惊喜。</p>' 
+                    },
+                    anxious: { 
+                        name: '焦虑型依恋', sub: '“渴望被燃烧的飞蛾”', 
+                        desc: '你的灵魂里住着一个永恒的“寻觅者”。你极度渴望亲密，甚至想与伴侣融为一体。然而，你对“失去”有着惊人的敏感，对方一个细微的冷落或迟疑，都会在你心中掀起海啸。', 
+                        guide: '<p><b>✦ 建立“内在花园”：</b>练习将目光从对方身上移开，回到自己。当你能独自在荒原上起舞时，你才不再是那个等待被救赎的人。</p><p><b>✦ 识别“假警报”：</b>明白对方的沉默往往与你无关。给爱留一点呼吸的缝隙，你会发现它比想象中更坚固。</p>' 
+                    },
+                    avoidant: { 
+                        name: '回避型依恋', sub: '“独自漂浮的冰山”', 
+                        desc: '你是一个高傲的浪漫主义者，将“独立”视为灵魂的盔甲。你潜意识里认为依赖别人是危险的，甚至会感到厌恶。当关系变得太亲密时，你会本能地撤退，躲进自己的物理或心理空间里。', 
+                        guide: '<p><b>✦ 卸下防御：</b>尝试向伴侣分享一个小秘密或一个小弱点。你会发现，露出软肋并不会让你毁灭，反而会让爱重新流动起来。</p><p><b>✦ 练习“依赖”：</b>依赖不是软弱，而是人类最高级的信任。试着在疲惫时，坦然接受对方的照顾与靠近。</p>' 
+                    },
+                    fearful: { 
+                        name: '恐惧型依恋', sub: '“在火边颤抖的受难者”', 
+                        desc: '这是最令人心碎的一种类型。你既渴望爱得热烈，又极度恐惧靠近。你就像一个在寒冬中行走的人，渴望靠近火堆取暖，但一旦靠近又怕被灼伤。你在“推开”与“拉回”之间反复折磨自己。', 
+                        guide: '<p><b>✦ 疗愈内在小孩：</b>你的矛盾往往来源于曾经的不确定感。请在心里拥抱那个受惊的自己告诉他：“现在已经安全了，你可以慢一点去爱。”</p><p><b>✦ 透明化沟通：</b>当你想逃跑或推开对方时，试着真诚地说：“我现在感到有点害怕，请给我一点时间。”这比冷战更有力量。</p>' 
+                    }
+                };
+                
+                const info = typeInfo[mainType];
+                const anxietyScore = scores.anxious + scores.fearful;
+                const avoidanceScore = scores.avoidant + scores.fearful;
+                const topPercent = 80 - (anxietyScore / 36 * 60) + '%';
+                const leftPercent = 20 + (avoidanceScore / 36 * 60) + '%';
+                return { info, top: topPercent, left: leftPercent, mainType };
+            }
+
+            function showReport() {
+                const { info, top, left } = buildReport();
+                // 修复：将装载 guide 的标签由 p 改为 div，配合 flex 布局控制段落间距
+                reportContent.innerHTML = `
+                    <div class="chart-section">
+                        <div class="coordinate-system">
+                            <div class="axis-x"></div><div class="axis-y"></div>
+                            <div class="user-point" style="top:${top}; left:${left};"></div>
+                            <span class="dim-label" style="top:-25px; left:75px;">焦虑维度</span>
+                            <span class="dim-label" style="right:-60px; top:92px;">回避维度</span>
+                        </div>
+                        <div>
+                            <p style="font-size:0.9rem; color:#8C847E; margin:0;">你的坐标落在了</p>
+                            <h2 class="type-title">${info.name}</h2>
+                            <p class="type-sub">${info.sub}</p>
+                        </div>
+                    </div>
+                    <section>
+                        <h3>爱与恐惧的肖像</h3>
+                        <p class="analysis-p">${info.desc}</p>
+                    </section>
+                    <section class="suggestion-card">
+                        <h3 style="margin-top:0; border:none; color:#C5B9D1;">给你的星辰指引</h3>
+                        <div style="color:#7A736E; font-size:0.95rem; line-height:2; display:flex; flex-direction:column; gap:12px;">${info.guide}</div>
+                    </section>
+                    <div class="footer-sign">
+                        心之所向 · 视觉实验室 · 2026.03
+                    </div>
+                    <div class="action-buttons" data-html2canvas-ignore="true">
+                        <button class="btn" id="restartBtn">重新测试</button>
+                        <button class="btn btn-primary" id="saveReportBtn">保存报告</button>
+                    </div>
+                `;
+                
+                document.getElementById('restartBtn').addEventListener('click', () => window.location.reload());
+                
+                document.getElementById('saveReportBtn').addEventListener('click', () => {
+                    const target = document.getElementById('report-card');
+                    
+                    // 修复截图不全的核心：在截图前，临时移除 transform 居中效果
+                    const originalTransform = target.style.transform;
+                    const originalPosition = target.style.position;
+                    const originalLeft = target.style.left;
+                    const originalTop = target.style.top;
+                    const originalMargin = target.style.margin;
+
+                    // 临时修改为流式布局，让它成为一个普通的块级元素
+                    target.style.transform = 'none';
+                    target.style.position = 'relative';
+                    target.style.left = '0';
+                    target.style.top = '0';
+                    target.style.margin = '0 auto';
+
+                    // 放大倍率设置为 2，让生成的图片更清晰
+                    html2canvas(target, { 
+                        scale: 2, 
+                        backgroundColor: '#FFFFFF',
+                        useCORS: true
+                    }).then(canvas => {
+                        // 截图完成后，神不知鬼不觉地把样式恢复原样
+                        target.style.transform = originalTransform;
+                        target.style.position = originalPosition;
+                        target.style.left = originalLeft;
+                        target.style.top = originalTop;
+                        target.style.margin = originalMargin;
+
+                        // 触发下载
+                        const link = document.createElement('a');
+                        link.download = '灵魂信札.png';
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    });
+                });
+            }
+
+            function startFinalAnimation() {
+                mainContainer.style.display = 'none';
+                canvasContainer.style.display = 'block';
+                setTimeout(() => canvasContainer.style.opacity = '1', 50);
+                initCanvas();
+                stars = [];
+                for (let i = 0; i < 55; i++) stars.push(new Star());
+                drawConstellation();
+                setTimeout(() => {
+                    reportCard.style.display = 'block';
+                    showReport();
+                    setTimeout(() => reportCard.style.opacity = '1', 200);
+                }, 2600);
+            }
+
+            // 强化 resize 事件：取消旧动画，重置画布和星星
+            window.addEventListener('resize', () => {
+                if (stars && stars.length > 0) { 
+                    cancelAnimationFrame(animFrame);  // 停止当前动画
+                    initCanvas();                      // 重置画布尺寸
+                    stars = [];                        // 清空并重新生成星星
+                    for (let i = 0; i < 55; i++) stars.push(new Star());
+                    drawConstellation();               // 重新开始动画
+                }
+            });
+
+            // 页面启动加载
+            if (questions[0].part) {
+                showIntermission(questions[0].part);
+            } else {
+                renderQuestion();
+            }
+        })();
+    </script>
+</body>
+</html>
