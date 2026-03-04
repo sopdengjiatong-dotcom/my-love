@@ -719,7 +719,15 @@
 
             function showReport() {
                 const { info, top, left } = buildReport();
-                // 修复：将装载 guide 的标签由 p 改为 div，配合 flex 布局控制段落间距
+                
+                // 🌟 获取并格式化当前的年月日
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const currentDateStr = `${year}.${month}.${day}`; 
+                
+                // 生成报告的 HTML 结构
                 reportContent.innerHTML = `
                     <div class="chart-section">
                         <div class="coordinate-system">
@@ -743,7 +751,7 @@
                         <div style="color:#7A736E; font-size:0.95rem; line-height:2; display:flex; flex-direction:column; gap:12px;">${info.guide}</div>
                     </section>
                     <div class="footer-sign">
-                        心之所向 · 视觉实验室 · 2026.03
+                        心之所向 · 救赎与成长 · ${currentDateStr}
                     </div>
                     <div class="action-buttons" data-html2canvas-ignore="true">
                         <button class="btn" id="restartBtn">重新测试</button>
@@ -755,37 +763,43 @@
                 
                 document.getElementById('saveReportBtn').addEventListener('click', () => {
                     const target = document.getElementById('report-card');
-                    
-                    // 修复截图不全的核心：在截图前，临时移除 transform 居中效果
+   
+                    // 1. 记录原有样式
                     const originalTransform = target.style.transform;
                     const originalPosition = target.style.position;
                     const originalLeft = target.style.left;
                     const originalTop = target.style.top;
                     const originalMargin = target.style.margin;
+                    const originalMaxHeight = target.style.maxHeight; 
+                    const originalOverflowY = target.style.overflowY; 
 
-                    // 临时修改为流式布局，让它成为一个普通的块级元素
+                    // 2. 临时修改为流式布局，解除限制
                     target.style.transform = 'none';
                     target.style.position = 'relative';
                     target.style.left = '0';
                     target.style.top = '0';
                     target.style.margin = '0 auto';
+                    target.style.maxHeight = 'none';      
+                    target.style.overflowY = 'visible';   
 
-                    // 放大倍率设置为 2，让生成的图片更清晰
+                    // 3. 调用 html2canvas 绘制
                     html2canvas(target, { 
                         scale: 2, 
                         backgroundColor: '#FFFFFF',
                         useCORS: true
                     }).then(canvas => {
-                        // 截图完成后，神不知鬼不觉地把样式恢复原样
+                        // 4. 恢复样式
                         target.style.transform = originalTransform;
                         target.style.position = originalPosition;
                         target.style.left = originalLeft;
                         target.style.top = originalTop;
                         target.style.margin = originalMargin;
+                        target.style.maxHeight = originalMaxHeight; 
+                        target.style.overflowY = originalOverflowY; 
 
-                        // 触发下载
+                        // 5. 触发下载 (文件名带上动态日期)
                         const link = document.createElement('a');
-                        link.download = '灵魂信札.png';
+                        link.download = `灵魂信札_${currentDateStr}.png`;
                         link.href = canvas.toDataURL('image/png');
                         link.click();
                     });
